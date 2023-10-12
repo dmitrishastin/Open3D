@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2023 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include <string>
@@ -49,6 +30,8 @@ const static std::vector<DataDescriptor> data_descriptors = {
          "601ac4b51aba2455a90aed8aa1158c6a"},
         {Open3DDownloadsPrefix() + "augmented-icl-nuim/livingroom1.oni.zip",
          "fb201903f211f31ccd01886457bb004c"},
+        {Open3DDownloadsPrefix() + "augmented-icl-nuim/dist-model.txt",
+         "d8d7b6d29e754c2993a6eba4fd8d89ea"},
 };
 
 RedwoodIndoorLivingRoom1::RedwoodIndoorLivingRoom1(const std::string& data_root)
@@ -91,6 +74,10 @@ RedwoodIndoorLivingRoom1::RedwoodIndoorLivingRoom1(const std::string& data_root)
     // trajectory_path_
     trajectory_path_ = extract_dir + "/livingroom1-traj.txt";
     all_paths.push_back(trajectory_path_);
+
+    // noise_model_path_
+    noise_model_path_ = extract_dir + "/dist-model.txt";
+    all_paths.push_back(noise_model_path_);
 
     // Check all files exist.
     CheckPathsExist(all_paths);
