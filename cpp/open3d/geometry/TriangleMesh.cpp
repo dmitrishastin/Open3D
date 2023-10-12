@@ -454,7 +454,8 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
         size_t number_of_points,
         std::vector<double> &triangle_areas,
         double surface_area,
-        bool use_triangle_normal) {
+        bool use_triangle_normal,
+		const double max_depth /* = 0 */) {
     if (surface_area <= 0) {
         utility::LogError("Invalid surface area {}, it must be > 0.",
                           surface_area);
@@ -468,21 +469,28 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
     }
 
     // sample point cloud
-    bool has_vert_normal = HasVertexNormals();
+    //bool has_vert_normal = HasVertexNormals();
     bool has_vert_color = HasVertexColors();
+	bool has_vert_normal = HasVertexNormals();
     utility::random::UniformDoubleGenerator uniform_generator(0.0, 1.0);
     auto pcd = std::make_shared<PointCloud>();
     pcd->points_.resize(number_of_points);
+	pcd->normals_.resize(number_of_points);
+	pcd->bary_.resize(number_of_points);
+	pcd->depth_.resize(number_of_points);
+	
     if (has_vert_normal || use_triangle_normal) {
         pcd->normals_.resize(number_of_points);
     }
     if (use_triangle_normal && !HasTriangleNormals()) {
         ComputeTriangleNormals(true);
-    }
+    }	
     if (has_vert_color) {
-        pcd->colors_.resize(number_of_points);
+		pcd->colors_.resize(number_of_points);
     }
+	
     size_t point_idx = 0;
+	double md = max_depth * 2;
     for (size_t tidx = 0; tidx < triangles_.size(); ++tidx) {
         size_t n = size_t(std::round(triangle_areas[tidx] * number_of_points));
         while (point_idx < n) {
@@ -491,25 +499,36 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
             double a = (1 - std::sqrt(r1));
             double b = std::sqrt(r1) * (1 - r2);
             double c = std::sqrt(r1) * r2;
+			double d = (md ? (uniform_generator() - 0.5) * md : 0);
 
             const Eigen::Vector3i &triangle = triangles_[tidx];
-            pcd->points_[point_idx] = a * vertices_[triangle(0)] +
+			
+			pcd->points_[point_idx] = a * vertices_[triangle(0)] +
                                       b * vertices_[triangle(1)] +
                                       c * vertices_[triangle(2)];
-            if (has_vert_normal && !use_triangle_normal) {
+									  
+			if (has_vert_normal && !use_triangle_normal) {
                 pcd->normals_[point_idx] = a * vertex_normals_[triangle(0)] +
                                            b * vertex_normals_[triangle(1)] +
                                            c * vertex_normals_[triangle(2)];
+			    pcd->normals_[point_idx] = pcd->normals_[point_idx].normalized();
             }
+			
             if (use_triangle_normal) {
                 pcd->normals_[point_idx] = triangle_normals_[tidx];
-            }
-            if (has_vert_color) {
+            }						  
+
+			if (max_depth)
+				pcd->points_[point_idx] = pcd->points_[point_idx] + d * pcd->normals_[point_idx]; 
+			
+			if (has_vert_color) {
                 pcd->colors_[point_idx] = a * vertex_colors_[triangle(0)] +
                                           b * vertex_colors_[triangle(1)] +
                                           c * vertex_colors_[triangle(2)];
-            }
-
+			}
+			
+			pcd->bary_[point_idx] = Eigen::Vector3d(a, b, tidx);
+			pcd->depth_[point_idx] = d;
             point_idx++;
         }
     }
@@ -518,7 +537,8 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
 }
 
 std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformly(
-        size_t number_of_points, bool use_triangle_normal /* = false */) {
+        size_t number_of_points, bool use_triangle_normal /* = false */, 
+		const double max_depth /* = 0 */) {
     if (number_of_points <= 0) {
         utility::LogError("number_of_points <= 0");
     }
@@ -531,14 +551,24 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformly(
     double surface_area = GetSurfaceArea(triangle_areas);
 
     return SamplePointsUniformlyImpl(number_of_points, triangle_areas,
-                                     surface_area, use_triangle_normal);
+                                     surface_area, use_triangle_normal,
+									 max_depth);
 }
 
 std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
         size_t number_of_points,
         double init_factor /* = 5 */,
         const std::shared_ptr<PointCloud> pcl_init /* = nullptr */,
-        bool use_triangle_normal /* = false */) {
+        bool use_triangle_normal /* = false */,
+		const std::vector<double> &vertex_weights /* = std::vector<double>() */,
+		const double alpha /* = 8. */,
+		const double beta /* = 0.5 */,
+		const double pw /* = 2. */,
+		double r_scale /* = 3. */,
+		const double k_min /* = -0.2 */,
+		const double k_max /* = 0.25 */,
+		const double max_depth /* = 0 */) {
+			
     if (number_of_points <= 0) {
         utility::LogError("number_of_points <= 0");
     }
@@ -565,51 +595,88 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     if (pcl_init == nullptr) {
         pcl = SamplePointsUniformlyImpl(size_t(init_factor * number_of_points),
                                         triangle_areas, surface_area,
-                                        use_triangle_normal);
+                                        use_triangle_normal, max_depth);
     } else {
         pcl = std::make_shared<PointCloud>();
         pcl->points_ = pcl_init->points_;
         pcl->normals_ = pcl_init->normals_;
         pcl->colors_ = pcl_init->colors_;
+		pcl->bary_ = pcl_init->bary_;
+		pcl->depth_ = pcl_init->depth_;
     }
+	
+	// Adaptive weight adjustment
+	bool use_vertex_weights = false;
+	std::vector<double> pointwiseAW2 (pcl->points_.size());
+	const double kappa_rescale = k_max - k_min;
+	
+	auto ImpFcn = [&](double kappa) {
+		kappa = std::max(kappa, k_min);
+		kappa = std::min(kappa, k_max);
+		kappa = 1 - (kappa - k_min) / kappa_rescale;
+		return std::pow(kappa, pw);
+	};
+	
+	if (!vertex_weights.empty()) {
+		//utility::LogWarning("vertex weights provided");
+		use_vertex_weights = true;
+		std::vector<double> vw (vertices_.size());
+		
+		for (size_t from_vidx = 0; from_vidx < vertices_.size(); ++from_vidx) {
+			vw[from_vidx] = ImpFcn(vertex_weights[from_vidx]);
+		}		
+		
+		for (size_t pidx = 0; pidx < pcl->points_.size(); ++pidx) {
+			const Eigen::Vector3d &uvf = pcl->normals_[pidx];
+			const Eigen::Vector3i &triangle = triangles_[uvf(2)];
+			pointwiseAW2[pidx] = std::pow(
+								 uvf(0) * vw[triangle(0)] +
+								 uvf(1) * vw[triangle(1)] +
+					  (1-uvf(0)-uvf(1)) * vw[triangle(2)], 2);
+		}
+	} else {
+		r_scale = 1;
+	}	
 
     // Set-up sample elimination
-    double alpha = 8;    // constant defined in paper
-    double beta = 0.5;   // constant defined in paper
     double gamma = 1.5;  // constant defined in paper
     double ratio = double(number_of_points) / double(pcl->points_.size());
-    double r_max = 2 * std::sqrt((surface_area / number_of_points) /
-                                 (2 * std::sqrt(3.)));
-    double r_min = r_max * beta * (1 - std::pow(ratio, gamma));
+    double r_max = 2 * r_scale * std::sqrt((surface_area / number_of_points) /
+                                 (2 * std::sqrt(3.)));    	
+	double r_min = r_max * beta * (1 - std::pow(ratio, gamma));
 
     std::vector<double> weights(pcl->points_.size());
     std::vector<bool> deleted(pcl->points_.size(), false);
     KDTreeFlann kdtree(*pcl);
 
-    auto WeightFcn = [&](double d2) {
-        double d = std::sqrt(d2);
-        if (d < r_min) {
-            d = r_min;
-        }
-        return std::pow(1 - d / r_max, alpha);
-    };
+	auto WeightFcn = [&](double d2, double aw) {
+		double d = std::sqrt(d2);
+		d = (d > r_min ? d : r_min) * (r_scale - (r_scale - 1) * aw);
+		d = (d < r_max ? d : r_max);
+		return std::pow(1 - d / r_max, alpha);
+	};
 
-    auto ComputePointWeight = [&](int pidx0) {
-        std::vector<int> nbs;
-        std::vector<double> dists2;
-        kdtree.SearchRadius(pcl->points_[pidx0], r_max, nbs, dists2);
-        double weight = 0;
-        for (size_t nbidx = 0; nbidx < nbs.size(); ++nbidx) {
-            int pidx1 = nbs[nbidx];
-            // only count weights if not the same point if not deleted
-            if (pidx0 == pidx1 || deleted[pidx1]) {
-                continue;
-            }
-            weight += WeightFcn(dists2[nbidx]);
-        }
 
-        weights[pidx0] = weight;
-    };
+	auto ComputePointWeight = [&](int pidx0) {
+		std::vector<int> nbs;
+		std::vector<double> dists2;		
+		kdtree.SearchRadius(pcl->points_[pidx0], r_max, nbs, dists2);
+		double weight = 0;
+		for (size_t nbidx = 0; nbidx < nbs.size(); ++nbidx) {
+			int pidx1 = nbs[nbidx];
+			// only count weights if not the same point if not deleted
+			if (pidx0 == pidx1 || deleted[pidx1]) {
+				continue;
+			}
+			if (use_vertex_weights)
+				weight += WeightFcn(dists2[nbidx], pointwiseAW2[pidx1]);
+			else
+				weight += WeightFcn(dists2[nbidx], 1.);				
+		}
+
+		weights[pidx0] = weight; 
+		
+	};
 
     // init weights and priority queue
     typedef std::tuple<int, double> QueueEntry;
@@ -654,6 +721,8 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     // update pcl
     bool has_vert_normal = pcl->HasNormals();
     bool has_vert_color = pcl->HasColors();
+	bool has_bary = pcl->HasBary();
+	bool has_depth = pcl->HasDepth();
     int next_free = 0;
     for (size_t idx = 0; idx < pcl->points_.size(); ++idx) {
         if (!deleted[idx]) {
@@ -664,6 +733,12 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
             if (has_vert_color) {
                 pcl->colors_[next_free] = pcl->colors_[idx];
             }
+			if (has_bary) {
+                pcl->bary_[next_free] = pcl->bary_[idx];
+            }
+			if (has_depth) {
+                pcl->depth_[next_free] = pcl->depth_[idx];
+            }
             next_free++;
         }
     }
@@ -673,6 +748,12 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     }
     if (has_vert_color) {
         pcl->colors_.resize(next_free);
+    }
+	if (has_bary) {
+        pcl->bary_.resize(next_free);
+    }
+	if (has_depth) {
+        pcl->depth_.resize(next_free);
     }
 
     return pcl;

@@ -65,6 +65,10 @@ void pybind_pointcloud(py::module &m) {
                  "Returns ``True`` if the point cloud contains point colors.")
             .def("has_covariances", &PointCloud::HasCovariances,
                  "Returns ``True`` if the point cloud contains covariances.")
+			.def("has_bary", &PointCloud::HasBary, 
+				 "Returns ``True`` if the point cloud contains barycentric coordinates and face indices.")
+			.def("has_depth", &PointCloud::HasDepth, 
+				 "Returns ``True`` if the point cloud contains depth values.")
             .def("normalize_normals", &PointCloud::NormalizeNormals,
                  "Normalize point normals to length 1.")
             .def("paint_uniform_color", &PointCloud::PaintUniformColor,
@@ -260,10 +264,20 @@ camera. Given depth value d at (u, v) image coordinate, the corresponding 3d poi
             .def_readwrite("covariances", &PointCloud::covariances_,
                            "``float64`` array of shape ``(num_points, 3, 3)``, "
                            "use ``numpy.asarray()`` to access data: Points "
-                           "covariances.");
+                           "covariances.")
+			.def_readwrite("bary", &PointCloud::bary_,
+                           "``float64`` array of shape ``(num_points, 3)``, "
+                           "use ``numpy.asarray()`` to access data: Points "
+                           "bary.")
+		    .def_readwrite("depth", &PointCloud::depth_,
+                           "``float64`` array of shape ``(num_points, 1)``, "
+                           "use ``numpy.asarray()`` to access data: Points "
+                           "depth.");
     docstring::ClassMethodDocInject(m, "PointCloud", "has_colors");
     docstring::ClassMethodDocInject(m, "PointCloud", "has_normals");
     docstring::ClassMethodDocInject(m, "PointCloud", "has_points");
+	docstring::ClassMethodDocInject(m, "PointCloud", "has_bary");
+	docstring::ClassMethodDocInject(m, "PointCloud", "has_depth");
     docstring::ClassMethodDocInject(m, "PointCloud", "normalize_normals");
     docstring::ClassMethodDocInject(
             m, "PointCloud", "paint_uniform_color",
