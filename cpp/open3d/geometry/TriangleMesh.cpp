@@ -436,7 +436,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
         std::vector<double> &triangle_areas,
         double surface_area,
         bool use_triangle_normal,
-		const double max_depth /* = 0 */) {
+        const double max_depth /* = 0 */) {
     if (surface_area <= 0) {
         utility::LogError("Invalid surface area {}, it must be > 0.",
                           surface_area);
@@ -456,10 +456,10 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
     utility::random::UniformRealGenerator<double> uniform_generator(0.0, 1.0);
     auto pcd = std::make_shared<PointCloud>();
     pcd->points_.resize(number_of_points);
-	pcd->normals_.resize(number_of_points);
-	pcd->bary_.resize(number_of_points);
-	pcd->depth_.resize(number_of_points);
-	
+    pcd->normals_.resize(number_of_points);
+    pcd->bary_.resize(number_of_points);
+    pcd->depth_.resize(number_of_points);
+    
     if (has_vert_normal || use_triangle_normal) {
         pcd->normals_.resize(number_of_points);
     }
@@ -471,7 +471,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsUniformlyImpl(
     }
 	
     size_t point_idx = 0;
-	double md = max_depth * 2;
+    double md = max_depth * 2;
     for (size_t tidx = 0; tidx < triangles_.size(); ++tidx) {
         size_t n = size_t(std::round(triangle_areas[tidx] * number_of_points));
         while (point_idx < n) {
@@ -541,14 +541,14 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
         double init_factor /* = 5 */,
         const std::shared_ptr<PointCloud> pcl_init /* = nullptr */,
         bool use_triangle_normal /* = false */,
-		const std::vector<double> &vertex_weights /* = std::vector<double>() */,
-		const double alpha /* = 8. */,
-		const double beta /* = 0.5 */,
-		const double pw /* = 2. */,
-		double r_scale /* = 3. */,
-		const double k_min /* = -0.2 */,
-		const double k_max /* = 0.25 */,
-		const double max_depth /* = 0 */) {
+        const std::vector<double> &vertex_weights /* = std::vector<double>() */,
+        const double alpha /* = 8. */,
+        const double beta /* = 0.65 */,
+        const double pw /* = 2. */,
+        double r_scale /* = 3. */,
+        const double k_min /* = -0.2 */,
+        const double k_max /* = 0.25 */,
+        const double max_depth /* = 0 */) {
 			
     if (number_of_points <= 0) {
         utility::LogError("number_of_points <= 0");
@@ -582,8 +582,8 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
         pcl->points_ = pcl_init->points_;
         pcl->normals_ = pcl_init->normals_;
         pcl->colors_ = pcl_init->colors_;
-		pcl->bary_ = pcl_init->bary_;
-		pcl->depth_ = pcl_init->depth_;
+        pcl->bary_ = pcl_init->bary_;
+        pcl->depth_ = pcl_init->depth_;
     }
 	
 	// Adaptive weight adjustment
@@ -620,13 +620,13 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
 	}	
 
     // Set-up sample elimination
-    double alpha = 8;    // constant defined in paper
-    double beta = 0.65;  // constant defined in paper
+    // double alpha = 8;    // constant defined in paper
+    // double beta = 0.65;  // constant defined in paper
     double gamma = 1.5;  // constant defined in paper
     double ratio = double(number_of_points) / double(pcl->points_.size());
     double r_max = 2 * r_scale * std::sqrt((surface_area / number_of_points) /
                                  (2 * std::sqrt(3.)));    	
-	double r_min = r_max * beta * (1 - std::pow(ratio, gamma));
+    double r_min = r_max * beta * (1 - std::pow(ratio, gamma));
 
     std::vector<double> weights(pcl->points_.size());
     std::vector<bool> deleted(pcl->points_.size(), false);
@@ -704,8 +704,8 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     // update pcl
     bool has_vert_normal = pcl->HasNormals();
     bool has_vert_color = pcl->HasColors();
-	bool has_bary = pcl->HasBary();
-	bool has_depth = pcl->HasDepth();
+    bool has_bary = pcl->HasBary();
+    bool has_depth = pcl->HasDepth();
     int next_free = 0;
     for (size_t idx = 0; idx < pcl->points_.size(); ++idx) {
         if (!deleted[idx]) {
@@ -732,12 +732,12 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     if (has_vert_color) {
         pcl->colors_.resize(next_free);
     }
-	if (has_bary) {
-        pcl->bary_.resize(next_free);
-    }
-	if (has_depth) {
-        pcl->depth_.resize(next_free);
-    }
+    if (has_bary) {
+          pcl->bary_.resize(next_free);
+      }
+    if (has_depth) {
+          pcl->depth_.resize(next_free);
+      }
 
     return pcl;
 }

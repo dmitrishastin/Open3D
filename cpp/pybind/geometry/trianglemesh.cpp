@@ -231,17 +231,17 @@ void pybind_trianglemesh(py::module &m) {
                  "noise). Method is based on Yuksel, \"Sample Elimination for "
                  "Generating Poisson Disk Sample Sets\", EUROGRAPHICS, 2015.",
                  "number_of_points"_a, 
-				 "init_factor"_a = 5, 
-				 "pcl"_a = nullptr,
+                 "init_factor"_a = 5, 
+                 "pcl"_a = nullptr,
                  "use_triangle_normal"_a = false, 
-				 "vertex_weights"_a = std::vector<double>(), 
-				 "alpha"_a = 8., 
-				 "beta"_a = 0.5,
-				 "pw"_a = 2., 
-				 "r_scale"_a = 3.,
-				 "k_min"_a = -0.2, 
-				 "k_max"_a = 0.25,
-				 "max_depth"_a = 0)
+                 "vertex_weights"_a = std::vector<double>(), 
+                 "alpha"_a = 8., 
+                 "beta"_a = 0.65,
+                 "pw"_a = 2., 
+                 "r_scale"_a = 3.,
+                 "k_min"_a = -0.2, 
+                 "k_max"_a = 0.25,
+                 "max_depth"_a = 0)
             .def("subdivide_midpoint", &TriangleMesh::SubdivideMidpoint,
                  "Function subdivide mesh using midpoint algorithm.",
                  "number_of_iterations"_a = 1)

@@ -369,14 +369,14 @@ public:
             double init_factor = 5,
             const std::shared_ptr<PointCloud> pcl_init = nullptr,
             bool use_triangle_normal = false,
-			const std::vector<double> &vertex_weights = std::vector<double>(),
-			const double alpha = 8.,
-			const double beta = 0.5,
-			const double pw = 2.,
-			double r_scale = 3.,
-			const double k_min = -0.2,
-			const double k_max = 0.25,
-			const double max_depth = 0);
+            const std::vector<double> &vertex_weights = std::vector<double>(),
+            const double alpha = 8.,
+            const double beta = 0.65,
+            const double pw = 2.,
+            double r_scale = 3.,
+            const double k_min = -0.2,
+            const double k_max = 0.25,
+            const double max_depth = 0);
 
     /// Function to subdivide triangle mesh using the simple midpoint algorithm.
     /// Each triangle is subdivided into four triangles per iteration and the
