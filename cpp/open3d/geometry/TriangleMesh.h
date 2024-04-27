@@ -337,10 +337,8 @@ public:
     /// mesh.
     std::shared_ptr<PointCloud> SamplePointsUniformlyImpl(
             size_t number_of_points,
-            std::vector<double> &triangle_areas,
-            double surface_area,
-            bool use_triangle_normal,
-			const double max_depth = 0.);
+            const std::vector<double> &triangle_areas,
+            bool use_triangle_normal);
 
     /// Function to sample points uniformly from the mesh.
     ///
@@ -349,8 +347,7 @@ public:
     /// the returned points instead of the interpolated vertex normals. The
     /// triangle normals will be computed and added to the mesh if necessary.
     std::shared_ptr<PointCloud> SamplePointsUniformly(
-            size_t number_of_points, bool use_triangle_normal = false,
-			const double max_depth = 0);
+            size_t number_of_points, bool use_triangle_normal = false);
 
     /// Function to sample points from the mesh with Possion disk, based on the
     /// method presented in Yuksel, "Sample Elimination for Generating Poisson
@@ -369,14 +366,14 @@ public:
             double init_factor = 5,
             const std::shared_ptr<PointCloud> pcl_init = nullptr,
             bool use_triangle_normal = false,
-			const std::vector<double> &vertex_weights = std::vector<double>(),
-			const double alpha = 8.,
-			const double beta = 0.5,
-			const double pw = 2.,
-			double r_scale = 3.,
-			const double k_min = -0.2,
-			const double k_max = 0.25,
-			const double max_depth = 0);
+            const std::vector<double> &vertex_weights = std::vector<double>(),
+            const double alpha = 8.,
+            const double beta = 0.5,
+            const double pw = 2.,
+            double r_scale = 3.,
+            const double k_min = -0.2,
+            const double k_max = 0.25,
+            const double max_depth = 0);
 
     /// Function to subdivide triangle mesh using the simple midpoint algorithm.
     /// Each triangle is subdivided into four triangles per iteration and the
@@ -863,7 +860,7 @@ public:
         std::unordered_map<std::string, Image> additionalMaps;
     };
 
-    std::unordered_map<std::string, Material> materials_;
+    std::vector<std::pair<std::string, Material>> materials_;
 
     /// List of material ids.
     std::vector<int> triangle_material_ids_;
