@@ -242,8 +242,7 @@ void pybind_trianglemesh(py::module &m) {
                  "k_min"_a = -0.2, 
                  "k_max"_a = 0.25,
                  "max_depth"_a = 0,
-                 "target_radius"_a = 0.,
-                 "target_type"_a = 0)
+                 "target_radius"_a = 0.)
             .def("subdivide_midpoint", &TriangleMesh::SubdivideMidpoint,
                  "Function subdivide mesh using midpoint algorithm.",
                  "number_of_iterations"_a = 1)

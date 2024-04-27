@@ -516,8 +516,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
         const double k_min /* = -0.2 */,
         const double k_max /* = 0.25 */,
         const double max_depth /* = 0 */,
-        const double target_radius /* = 0. */,
-        const int target_type /* = 0 */) {
+        const double target_radius /* = 0. */) {
 			
     if (number_of_points <= 0) {
         utility::LogError("number_of_points <= 0");
@@ -535,15 +534,10 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
                 "Either pass pcl_init with #points > number_of_points, or "
                 "init_factor > 1");
     }
-    if (target_radius < 0 || target_type < 0 || target_type > 1) {
-        utility::LogError(
-                "target_radius and target_type must be non-negative, "
-                "target_type must be 0 (min) or 1 (mean)");    
-    }
-    if (target_radius && !vertex_weights.empty()) {
-        utility::LogError(
-                "can't target radius with adaptive sample elimination");    
-    }
+    if (target_radius < 0)
+        utility::LogError("target_radius must be non-negative");    
+    if (target_radius && !vertex_weights.empty())
+        utility::LogError("can't target radius with adaptive sample elimination");
 
     // Compute area of each triangle and sum surface area
     std::vector<double> triangle_areas;
@@ -610,9 +604,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     double r_min = r_max * beta * (1 - std::pow(ratio, gamma));
 
     std::vector<double> weights(pcl->points_.size());
-    std::vector<double> m_total(pcl->points_.size());
-    std::vector<double> r_total(pcl->points_.size());
-    std::vector<int> n_total(pcl->points_.size());
+    std::vector<double> min_rad_pt(pcl->points_.size());
     std::vector<bool> deleted(pcl->points_.size(), false);
     KDTreeFlann kdtree(*pcl);
 
@@ -627,9 +619,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
       std::vector<double> dists2;		
       kdtree.SearchRadius(pcl->points_[pidx0], r_max, nbs, dists2);      
       double weight = 0;
-      double mt_pidx0 = std::numeric_limits<double>::infinity();
-      double rt_pidx0 = 0;      
-      int nt_pidx0 = 0;
+      double mrad = std::numeric_limits<double>::infinity();
       for (size_t nbidx = 0; nbidx < nbs.size(); ++nbidx) {
         int pidx1 = nbs[nbidx];
         // only count weights if not the same point if not deleted
@@ -637,9 +627,7 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
           continue;
         }
         double dist = std::sqrt(dists2[nbidx]);
-        mt_pidx0 = (mt_pidx0 > dist ? dist : mt_pidx0);
-        rt_pidx0 += dist;
-        nt_pidx0 += 1;
+        mrad = (mrad > dist ? dist : mrad);
         if (use_vertex_weights)
           weight += WeightFcn(dist, pointwiseAW2[pidx1]);
         else
@@ -647,28 +635,17 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
       }
 
       weights[pidx0] = weight; 
-      m_total[pidx0] = mt_pidx0;
-      r_total[pidx0] = rt_pidx0;
-      n_total[pidx0] = nt_pidx0;
+      min_rad_pt[pidx0] = mrad;
       
     };
     
     auto min_radius = [&]() {
       double mtot = std::numeric_limits<double>::infinity();
-      for (size_t pidx0 = 0; pidx0 < m_total.size(); ++pidx0) {
-        mtot = (mtot > m_total[pidx0] ? m_total[pidx0] : mtot);
+      for (size_t pidx0 = 0; pidx0 < min_rad_pt.size(); ++pidx0) {
+        if (!deleted[pidx0])
+          mtot = (mtot > min_rad_pt[pidx0] ? min_rad_pt[pidx0] : mtot);
       }
       return mtot;
-    };
-    
-    auto mean_radius = [&]() {
-      double rtot = 0;
-      int ntot = 0;
-      for (size_t pidx0 = 0; pidx0 < r_total.size(); ++pidx0) {
-        rtot += r_total[pidx0];
-        ntot += n_total[pidx0];
-      }
-      return rtot / ntot;
     };
 
     // init weights and priority queue
@@ -686,14 +663,9 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
     }
       
     // check point number is sufficient
-    if (target_radius) {
-      if (!target_type && (min_radius() > target_radius)) {
+    if (target_radius && (min_radius() > target_radius)) {
         utility::LogError(
-          "minimum radius too large, try increasing the number of points");    
-      } else if (target_type && (mean_radius() > target_radius)) {
-        utility::LogError(
-          "mean radius too large, try increasing the number of points");  
-      }
+          "minimum radius too large, try increasing the number of points");         
     }
 
     // sample elimination
@@ -711,7 +683,6 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
 
         // delete current sample
         deleted[pidx] = true;
-        current_number_of_points--;
 
         // update weights
         std::vector<int> nbs;
@@ -724,12 +695,14 @@ std::shared_ptr<PointCloud> TriangleMesh::SamplePointsPoissonDisk(
         
         // test if radius limits are met
         if (target_radius) {
-          if (!target_type && (min_radius() > target_radius)) {
+          if (min_radius() > target_radius) {
             break;
-          } else if (target_type && (mean_radius() > target_radius)) {
+          } else if (current_number_of_points == 1) {
             break;
           }
-        }        
+        } else {
+          current_number_of_points--;
+        }     
     }
 
     // update pcl

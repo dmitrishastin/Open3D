@@ -374,8 +374,7 @@ public:
             const double k_min = -0.2,
             const double k_max = 0.25,
             const double max_depth = 0,
-            const double target_radius = 0.,
-            const int target_type = 0);
+            const double target_radius = 0.);
 
     /// Function to subdivide triangle mesh using the simple midpoint algorithm.
     /// Each triangle is subdivided into four triangles per iteration and the
