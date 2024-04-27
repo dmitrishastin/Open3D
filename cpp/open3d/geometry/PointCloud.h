@@ -78,16 +78,6 @@ public:
     bool HasColors() const {
         return points_.size() > 0 && colors_.size() == points_.size();
     }
-	
-	/// Returns `true` if the point cloud contains barycentric coordinates.
-    bool HasBary() const {
-        return points_.size() > 0 && bary_.size() == points_.size();
-    }
-	
-	/// Returns `true` if the point cloud contains depth.
-    bool HasDepth() const {
-        return points_.size() > 0 && depth_.size() == points_.size();
-    }
 
     /// Returns 'true' if the point cloud contains per-point covariance matrix.
     bool HasCovariances() const {
@@ -477,10 +467,6 @@ public:
     std::vector<Eigen::Vector3d> colors_;
     /// Covariance Matrix for each point
     std::vector<Eigen::Matrix3d> covariances_;
-	/// Barycentric coordinates and face
-	std::vector<Eigen::Vector3d> bary_;
-	/// Depth
-	std::vector<double> depth_;
 };
 
 }  // namespace geometry

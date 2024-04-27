@@ -29,8 +29,6 @@ PointCloud &PointCloud::Clear() {
     normals_.clear();
     colors_.clear();
     covariances_.clear();
-    bary_.clear();
-	depth_.clear();
     return *this;
 }
 
@@ -113,21 +111,7 @@ PointCloud &PointCloud::operator+=(const PointCloud &cloud) {
             covariances_[old_vert_num + i] = cloud.covariances_[i];
     } else {
         covariances_.clear();
-    }
-	if ((!HasPoints() || HasBary()) && cloud.HasBary()) {
-        bary_.resize(new_vert_num);
-        for (size_t i = 0; i < add_vert_num; i++)
-            bary_[old_vert_num + i] = cloud.bary_[i];
-    } else {
-        bary_.clear();
-    }
-	if ((!HasPoints() || HasDepth()) && cloud.HasDepth()) {
-        depth_.resize(new_vert_num);
-        for (size_t i = 0; i < add_vert_num; i++)
-            depth_[old_vert_num + i] = cloud.depth_[i];
-    } else {
-        depth_.clear();
-    }
+    }	
     points_.resize(new_vert_num);
     for (size_t i = 0; i < add_vert_num; i++)
         points_[old_vert_num + i] = cloud.points_[i];
@@ -164,8 +148,6 @@ PointCloud &PointCloud::RemoveDuplicatedPoints() {
     const bool has_normals = HasNormals();
     const bool has_colors = HasColors();
     const bool has_covariances = HasCovariances();
-	const bool has_bary = HasBary();
-	const bool has_depth = HasDepth();
     const size_t old_points_num = points_.size();
     size_t k = 0;
 
@@ -182,9 +164,7 @@ PointCloud &PointCloud::RemoveDuplicatedPoints() {
             if (has_normals) normals_[k] = normals_[i];
             if (has_covariances) covariances_[k] = covariances_[i];
             if (has_colors) colors_[k] = colors_[i];
-			if (has_bary) bary_[k] = bary_[i];
-			if (has_depth) depth_[k] = depth_[i];
-            k++;
+			      k++;
         }
     }
 
@@ -192,8 +172,6 @@ PointCloud &PointCloud::RemoveDuplicatedPoints() {
     if (has_normals) normals_.resize(k);
     if (has_covariances) covariances_.resize(k);
     if (has_colors) colors_.resize(k);
-	if (has_bary) bary_.resize(k);
-	if (has_depth) depth_.resize(k);
 
     utility::LogDebug("[RemoveDuplicatedPoints] {:d} points have been removed.",
                       (int)(old_points_num - k));
@@ -206,8 +184,6 @@ PointCloud &PointCloud::RemoveNonFinitePoints(bool remove_nan,
     bool has_normal = HasNormals();
     bool has_color = HasColors();
     bool has_covariance = HasCovariances();
-	bool has_bary = HasBary();
-	bool has_depth = HasDepth();
     size_t old_point_num = points_.size();
     size_t k = 0;                                 // new index
     for (size_t i = 0; i < old_point_num; i++) {  // old index
@@ -222,8 +198,6 @@ PointCloud &PointCloud::RemoveNonFinitePoints(bool remove_nan,
             if (has_normal) normals_[k] = normals_[i];
             if (has_color) colors_[k] = colors_[i];
             if (has_covariance) covariances_[k] = covariances_[i];
-			if (has_bary) bary_[k] = bary_[i];
-			if (has_depth) depth_[k] = depth_[i];
             k++;
         }
     }
@@ -232,8 +206,6 @@ PointCloud &PointCloud::RemoveNonFinitePoints(bool remove_nan,
     if (has_normal) normals_.resize(k);
     if (has_color) colors_.resize(k);
     if (has_covariance) covariances_.resize(k);
-	if (has_bary) bary_.resize(k);
-	if (has_depth) depth_.resize(k);
 
     utility::LogDebug(
             "[RemoveNonFinitePoints] {:d} nan points have been removed.",
@@ -248,8 +220,6 @@ std::shared_ptr<PointCloud> PointCloud::SelectByIndex(
     bool has_normals = HasNormals();
     bool has_colors = HasColors();
     bool has_covariance = HasCovariances();
-	bool has_bary = HasBary();
-	bool has_depth = HasDepth();
 
     std::vector<bool> mask = std::vector<bool>(points_.size(), invert);
     for (size_t i : indices) {
@@ -262,8 +232,6 @@ std::shared_ptr<PointCloud> PointCloud::SelectByIndex(
             if (has_normals) output->normals_.push_back(normals_[i]);
             if (has_colors) output->colors_.push_back(colors_[i]);
             if (has_covariance) output->covariances_.push_back(covariances_[i]);
-			if (has_bary) output->bary_.push_back(bary_[i]);
-			if (has_depth) output->depth_.push_back(depth_[i]);
         }
     }
 
@@ -291,10 +259,6 @@ public:
             color_ += cloud.colors_[index];
         if (cloud.HasCovariances())
             covariance_ += cloud.covariances_[index];
-		if (cloud.HasBary())
-			bary_ += cloud.bary_[index];
-		if (cloud.HasDepth())
-			depth_ += cloud.depth_[index];		
         num_of_points_++;
     }
 
@@ -321,8 +285,6 @@ public:
     Eigen::Vector3d normal_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d color_ = Eigen::Vector3d::Zero();
     Eigen::Matrix3d covariance_ = Eigen::Matrix3d::Zero();
-	Eigen::Vector3d bary_ = Eigen::Vector3d::Zero();
-	double depth_ = 0;
 };
 
 class point_cubic_id {
@@ -359,12 +321,6 @@ public:
         if (cloud.HasCovariances()) {
             covariance_ += cloud.covariances_[index];
         }
-		if (cloud.HasBary()) {
-			bary_ += cloud.bary_[index];
-		}		
-		if (cloud.HasDepth()) {
-			depth_ += cloud.depth_[index];
-		}
         point_cubic_id new_id;
         new_id.point_id = index;
         new_id.cubic_id = cubic_index;

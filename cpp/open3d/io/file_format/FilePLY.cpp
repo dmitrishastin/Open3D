@@ -473,14 +473,6 @@ bool WritePointCloudToPLY(const std::string &filename,
         ply_add_property(ply_file, "green", PLY_UCHAR, PLY_UCHAR, PLY_UCHAR);
         ply_add_property(ply_file, "blue", PLY_UCHAR, PLY_UCHAR, PLY_UCHAR);
     }
-    if (pointcloud.HasBary()) {
-        ply_add_property(ply_file, "bu", PLY_DOUBLE, PLY_DOUBLE, PLY_DOUBLE);
-        ply_add_property(ply_file, "bv", PLY_DOUBLE, PLY_DOUBLE, PLY_DOUBLE);
-        ply_add_property(ply_file, "bf", PLY_DOUBLE, PLY_DOUBLE, PLY_DOUBLE);
-    }
-	if (pointcloud.HasDepth()) {
-        ply_add_property(ply_file, "depth", PLY_DOUBLE, PLY_DOUBLE, PLY_DOUBLE);
-    }
 		
     if (!ply_write_header(ply_file)) {
         utility::LogWarning("Write PLY failed: unable to write header.");
@@ -516,16 +508,6 @@ bool WritePointCloudToPLY(const std::string &filename,
             ply_write(ply_file, rgb(0));
             ply_write(ply_file, rgb(1));
             ply_write(ply_file, rgb(2));
-        }
-		if (pointcloud.HasBary()) {
-            const Eigen::Vector3d &bary = pointcloud.bary_[i];
-            ply_write(ply_file, bary(0));
-            ply_write(ply_file, bary(1));
-            ply_write(ply_file, bary(2));
-        }
-		if (pointcloud.HasDepth()) {
-            const double &depth = pointcloud.depth_[i];
-            ply_write(ply_file, depth);
         }
         if (i % 1000 == 0) {
             reporter.Update(i);
